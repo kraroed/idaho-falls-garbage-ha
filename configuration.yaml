@@ -1,0 +1,14 @@
+# Dev-only Home Assistant config. Home location is central Idaho Falls.
+default_config:
+
+homeassistant:
+  name: Dev Home
+  latitude: 43.4666
+  longitude: -112.0341
+  time_zone: America/Boise
+  unit_system: us_customary
+
+logger:
+  default: info
+  logs:
+    custom_components.idaho_falls_garbage: debug

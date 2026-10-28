@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Idaho Falls Garbage Pickup",
+        "description": "Uses your Home Assistant home location to find your garbage collection day from the City of Idaho Falls. Change the coordinates if needed.",
+        "data": { "latitude": "Latitude", "longitude": "Longitude" }
+      },
+      "manual": {
+        "title": "Choose your collection day",
+        "description": "Your collection day couldn't be looked up automatically. Pick it from the city's Sanitation map.",
+        "data": { "collection_day": "Collection day" }
+      }
+    },
+    "error": {
+      "cannot_connect": "Couldn't reach the City of Idaho Falls GIS service.",
+      "outside_service_area": "That location isn't in the city's garbage collection area."
+    },
+    "abort": { "already_configured": "This location is already configured." }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Pickup options",
+        "data": {
+          "auto_detect": "Detect collection day automatically",
+          "collection_day": "Collection day (used when auto-detect is off)",
+          "cutoff_hour": "Cutoff hour (1-24)",
+          "no_delay_holidays": "Holidays that should NOT delay pickup",
+          "extra_delay_dates": "Extra delay dates (YYYY-MM-DD, comma-separated)"
+        },
+        "data_description": {
+          "auto_detect": "Re-checks the city's map daily and updates the day if the city changes it.",
+          "cutoff_hour": "After this local hour on pickup day, the Next pickup sensor moves to the following pickup. 24 = end of day.",
+          "extra_delay_dates": "Use for city-announced delays (weather, etc.). Pickups on or after that weekday, through Friday, shift one day."
+        }
+      }
+    },
+    "error": { "invalid_date": "Use YYYY-MM-DD dates separated by commas." }
+  },
+  "issues": {
+    "holiday_review": {
+      "title": "Check the {year} Idaho Falls holiday pickup schedule",
+      "description": "The City of Idaho Falls can change which holidays delay garbage pickup from year to year. Compare the {year} holiday schedule at {url} with this integration (Settings > Devices & services > Idaho Falls Garbage > Configure), adjust the options if needed, then dismiss this notice."
+    }
+  }
+}

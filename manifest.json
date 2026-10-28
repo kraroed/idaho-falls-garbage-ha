@@ -1,0 +1,12 @@
+{
+  "domain": "idaho_falls_garbage",
+  "name": "Idaho Falls Garbage Pickup",
+  "codeowners": ["@kraroed"],
+  "config_flow": true,
+  "documentation": "https://github.com/kraroed/idaho-falls-garbage-ha",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/kraroed/idaho-falls-garbage-ha/issues",
+  "requirements": [],
+  "version": "0.2.0"
+}

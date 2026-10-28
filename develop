@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Start a throwaway Home Assistant with this integration linked in.
+set -e
+cd "$(dirname "$0")/.."
+mkdir -p config
+ln -sfn "${PWD}/custom_components" config/custom_components
+export PYTHONPATH="${PYTHONPATH}:${PWD}/custom_components"
+hass --config config --debug
