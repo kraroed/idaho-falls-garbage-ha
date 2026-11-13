@@ -5,7 +5,8 @@ Tells you your next garbage pickup in Idaho Falls, ID, and shifts the date autom
 ## Features
 
 - **Uses your Home Assistant home location** to look up your collection day from the City of Idaho Falls GIS "Garbage Collection Area" layer (manual weekday fallback if the lookup fails).
-- **Holiday-aware.** Per the city's published policy, there is no collection on specified holidays and pickups for the rest of that week run one day late. The city publishes a year-specific schedule; the integration's configurable holiday exceptions let you adapt when its policy changes.
+- **Multiple weekly collection days.** Select more than one weekday for manually configured containerized alley routes.
+- **Holiday-aware.** Per the city's published policy, there is no collection on specified holidays and pickups for the rest of that week run one day late. The city's configurable holiday exceptions let you adapt when its policy changes.
 - **Leaf collection** (seasonal) for your leaf zone, from the city's Leaf Collection GIS layer.
 - **Self-correcting:** re-checks the city's map daily and updates your day (with a notification) if the city changes it.
 - **Resilient GIS handling:** malformed service responses, invalid features, and unusable date values are handled without crashing entity updates.
@@ -14,7 +15,7 @@ Tells you your next garbage pickup in Idaho Falls, ID, and shifts the date autom
 
 | Entity | What it is |
 |---|---|
-| `sensor.idaho_falls_garbage_next_pickup` | Date of the next pickup. Attributes: `collection_day`, `normal_date`, `delayed`, `delay_reason`, `days_until`, `upcoming` |
+| `sensor.idaho_falls_garbage_next_pickup` | Date of the next pickup. Attributes: `collection_day`, `collection_days`, `normal_date`, `delayed`, `delay_reason`, `days_until`, `upcoming` |
 | `binary_sensor.idaho_falls_garbage_pickup_today` | On on pickup day, until the cutoff hour |
 | `binary_sensor.idaho_falls_garbage_pickup_tomorrow` | On the day before a pickup, handy for "take the bins out" alerts |
 | `calendar.idaho_falls_garbage` | All-day events for pickups (delays labeled) and leaf collection |
@@ -23,16 +24,15 @@ Tells you your next garbage pickup in Idaho Falls, ID, and shifts the date autom
 
 ## Options (Configure)
 
-- **Detect collection day automatically**: on by default (off if you chose your day manually).
+- **Detect collection day automatically**: on by default for standard residential collection areas.
+- **Weekly collection days**: select one or more weekdays. For containerized alley routes, turn off automatic detection and select every day listed for your alley.
 - **Cutoff hour**: after this local hour on pickup day, *Next pickup* moves to the following pickup and *Pickup today* turns off. `24` = end of day.
 - **Holidays that should NOT delay pickup**: for years when the city's rules differ.
 - **Extra delay dates**: one-off city-announced delays (weather, etc.), `YYYY-MM-DD`.
 
+The city's sanitation map lists some containerized alley routes with two pickup days per week. The standard GIS collection-area lookup does not identify those alley schedules, so configure those days manually rather than relying on automatic detection.
+
 Each January and February a Repairs notice reminds you to check the city's holiday schedule; dismiss it once you have.
-
-## Important coverage note
-
-The city sanitation map also identifies containerized alley areas with special collection schedules (some locations have two collection days per week). The current integration models one weekday per location and does not automatically identify those special alley schedules. If your property is served by a containerized alley, verify its schedule with the city before relying on this integration. Support for multiple weekly pickup days requires a separate schedule model.
 
 ## Install
 
