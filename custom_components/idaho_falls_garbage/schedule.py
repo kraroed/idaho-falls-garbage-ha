@@ -8,6 +8,7 @@ Holidays that fall on a weekend do not affect the schedule.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from collections.abc import Sequence
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 
@@ -20,6 +21,16 @@ DELAY_HOLIDAYS = {
     "thanksgiving": "Thanksgiving",
     "christmas": "Christmas Day",
 }
+
+
+def _normalize_collection_days(collection_days: str | Sequence[str]) -> list[str]:
+    """Normalize one or more configured weekdays in calendar order."""
+    values = [collection_days] if isinstance(collection_days, str) else collection_days
+    normalized = {str(day).strip().lower() for day in values}
+    result = [day for day in WEEKDAYS if day in normalized]
+    if not result:
+        raise ValueError("At least one valid weekday is required")
+    return result
 
 
 def _nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
@@ -78,29 +89,30 @@ def actual_pickup(scheduled: date, delay_map: dict[date, str]) -> tuple[date, li
 def pickups_in_range(
     start: date,
     end: date,
-    collection_day: str,
+    collection_days: str | Sequence[str],
     delay_map: dict[date, str],
 ) -> list[tuple[date, date, list[str]]]:
     """Return (actual, scheduled, reasons) for pickups with start <= actual <= end."""
-    wd = WEEKDAYS.index(collection_day.lower())
+    weekdays = _normalize_collection_days(collection_days)
     week_start = start - timedelta(days=start.weekday())
     weeks = (end - start).days // 7 + 3
     out: list[tuple[date, date, list[str]]] = []
     for w in range(-1, weeks):
-        scheduled = week_start + timedelta(weeks=w, days=wd)
-        actual, reasons = actual_pickup(scheduled, delay_map)
-        if start <= actual <= end:
-            out.append((actual, scheduled, reasons))
-    out.sort(key=lambda t: t[0])
+        for day in weekdays:
+            scheduled = week_start + timedelta(weeks=w, days=WEEKDAYS.index(day))
+            actual, reasons = actual_pickup(scheduled, delay_map)
+            if start <= actual <= end:
+                out.append((actual, scheduled, reasons))
+    out.sort(key=lambda t: (t[0], t[1]))
     return out
 
 
 def upcoming_pickups(
     today: date,
-    collection_day: str,
+    collection_days: str | Sequence[str],
     delay_map: dict[date, str],
     count: int = 4,
 ) -> list[tuple[date, date, list[str]]]:
-    """Return up to `count` (actual, scheduled, reasons) tuples on/after today."""
+    """Return up to count (actual, scheduled, reasons) tuples on/after today."""
     end = today + timedelta(weeks=count + 6)
-    return pickups_in_range(today, end, collection_day, delay_map)[:count]
+    return pickups_in_range(today, end, collection_days, delay_map)[:count]
