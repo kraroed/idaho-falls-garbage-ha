@@ -45,8 +45,11 @@ def _extract_rows(data: Any) -> list[dict[str, Any]]:
         if not isinstance(feature, dict):
             continue
         attributes = feature.get("attributes")
-        if isinstance(attributes, dict):
+        if isinstance(attributes, dict) and attributes:
             rows.append(attributes)
+
+    if features and not rows:
+        raise CannotConnect("GIS response contained no usable feature attributes")
     return rows
 
 
