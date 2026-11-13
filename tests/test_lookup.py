@@ -33,6 +33,13 @@ def test_extract_rows_ignores_malformed_individual_features():
     ) == [{"CollectionDay": "Monday"}]
 
 
+def test_extract_rows_rejects_nonempty_collection_without_usable_attributes():
+    with pytest.raises(lookup.CannotConnect):
+        lookup._extract_rows(
+            {"features": [None, "bad-feature", {"attributes": None}, {}]}
+        )
+
+
 @pytest.mark.parametrize(
     "payload",
     [
