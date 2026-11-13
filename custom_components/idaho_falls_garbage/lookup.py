@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+import math
 from typing import Any
 
 import aiohttp
@@ -23,6 +24,45 @@ class LeafInfo:
     zone: str | None
     collect_date: date | None
     comments: str | None
+
+
+def _extract_rows(data: Any) -> list[dict[str, Any]]:
+    """Validate an ArcGIS query response and return its attribute rows.
+
+    ArcGIS normally returns a dictionary containing a features list. A
+    malformed top-level response is treated as a service failure, while
+    individual malformed features are ignored so one bad record does not
+    discard otherwise usable results.
+    """
+    if not isinstance(data, dict) or "error" in data:
+        raise CannotConnect(f"GIS error: {data}")
+    features = data.get("features")
+    if not isinstance(features, list):
+        raise CannotConnect("GIS response did not contain a features list")
+
+    rows: list[dict[str, Any]] = []
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        attributes = feature.get("attributes")
+        if isinstance(attributes, dict) and attributes:
+            rows.append(attributes)
+
+    if features and not rows:
+        raise CannotConnect("GIS response contained no usable feature attributes")
+    return rows
+
+
+def _esri_date(value: Any) -> date | None:
+    """Convert an ArcGIS epoch-millisecond date to a calendar date safely."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    try:
+        return datetime.fromtimestamp(value / 1000, tz=timezone.utc).date()
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 async def _async_query(
@@ -50,20 +90,24 @@ async def _async_query(
     except (aiohttp.ClientError, TimeoutError, ValueError) as err:
         raise CannotConnect from err
 
-    if not isinstance(data, dict) or "error" in data:
-        raise CannotConnect(f"GIS error: {data}")
-    return [f.get("attributes", {}) for f in data.get("features") or []]
+    return _extract_rows(data)
 
 
 async def async_lookup_collection_day(
     session: aiohttp.ClientSession, latitude: float, longitude: float
 ) -> str | None:
     """Return e.g. 'tuesday', or None if the point is outside the collection area."""
-    rows = await _async_query(session, GARBAGE_QUERY_URL, latitude, longitude, "CollectionDay")
-    if not rows:
-        return None
-    day = str(rows[0].get("CollectionDay", "")).strip().lower()
-    return day if day in WEEKDAYS else None
+    rows = await _async_query(
+        session, GARBAGE_QUERY_URL, latitude, longitude, "CollectionDay"
+    )
+    # GIS can return more than one intersecting feature (notably at polygon
+    # boundaries). Ignore malformed values rather than letting the first
+    # unusable feature hide a later valid collection-day record.
+    for row in rows:
+        day = str(row.get("CollectionDay", "")).strip().lower()
+        if day in WEEKDAYS:
+            return day
+    return None
 
 
 async def async_lookup_leaf(
@@ -75,14 +119,14 @@ async def async_lookup_leaf(
     )
     if not rows:
         return None
+
     row = rows[0]
-    ms = row.get("CollectDate")
-    collect_date = (
-        datetime.fromtimestamp(ms / 1000, tz=timezone.utc).date()
-        if isinstance(ms, (int, float))
-        else None
-    )
-    comments = (row.get("Comments") or "").strip() or None
+    zone_value = row.get("AreaName")
+    comments_value = row.get("Comments")
+    zone = str(zone_value).strip() if zone_value is not None else ""
+    comments = str(comments_value).strip() if comments_value is not None else ""
     return LeafInfo(
-        zone=(row.get("AreaName") or None), collect_date=collect_date, comments=comments
+        zone=zone or None,
+        collect_date=_esri_date(row.get("CollectDate")),
+        comments=comments or None,
     )

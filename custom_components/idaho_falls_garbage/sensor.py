@@ -41,7 +41,8 @@ class NextPickupSensor(GarbageEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any]:
         info = self.coordinator.pickup_info()
         return {
-            "collection_day": info.collection_day.title(),
+            "collection_day": info.collection_day,
+            "collection_days": [day.title() for day in info.collection_days],
             "normal_date": info.scheduled_date.isoformat(),
             "delayed": info.next_date != info.scheduled_date,
             "delay_reason": ", ".join(info.reasons) or None,

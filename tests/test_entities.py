@@ -10,7 +10,7 @@ TOMORROW = "binary_sensor.idaho_falls_garbage_pickup_tomorrow"
 
 
 async def test_next_pickup_normal(hass, freezer, mock_lookups):
-    freezer.move_to("2026-10-27 18:00:00+00:00")  # Tuesday, midday local
+    freezer.move_to("2026-10-27 18:00:00+00:00")
     await setup_entry(hass, make_entry("tuesday"))
     state = hass.states.get(NEXT)
     assert state.state == "2026-10-27"
@@ -28,14 +28,14 @@ async def test_thanksgiving_delay(hass, freezer, mock_lookups):
 
 
 async def test_pickup_tomorrow(hass, freezer, mock_lookups):
-    freezer.move_to("2026-10-26 18:00:00+00:00")  # Monday
+    freezer.move_to("2026-10-26 18:00:00+00:00")
     await setup_entry(hass, make_entry("tuesday"))
     assert hass.states.get(TOMORROW).state == "on"
     assert hass.states.get(TODAY).state == "off"
 
 
 async def test_cutoff_moves_to_next_pickup(hass, freezer, mock_lookups):
-    freezer.move_to("2026-10-27 23:00:00+00:00")  # Tuesday 17:00 local, past 15:00
+    freezer.move_to("2026-10-27 23:00:00+00:00")
     await setup_entry(hass, make_entry("tuesday", cutoff_hour=15))
     assert hass.states.get(NEXT).state == "2026-11-03"
     assert hass.states.get(TODAY).state == "off"
@@ -43,9 +43,10 @@ async def test_cutoff_moves_to_next_pickup(hass, freezer, mock_lookups):
 
 async def test_auto_redetect_updates_day(hass, freezer, mock_lookups):
     freezer.move_to("2026-10-27 18:00:00+00:00")
-    entry = make_entry("monday", auto_detect=True)  # city lookup mock says tuesday
+    entry = make_entry("monday", auto_detect=True)
     await setup_entry(hass, entry)
     assert entry.data[CONF_COLLECTION_DAY] == "tuesday"
+    assert entry.options["collection_days"] == ["tuesday"]
     assert hass.states.get(NEXT).state == "2026-10-27"
 
 
@@ -87,3 +88,15 @@ async def test_january_review_issue(hass, freezer, mock_lookups):
     freezer.move_to("2027-01-10 18:00:00+00:00")
     await setup_entry(hass, make_entry("tuesday"))
     assert ir.async_get(hass).async_get_issue(DOMAIN, "holiday_review_2027") is not None
+
+
+async def test_multiple_weekly_pickups(hass, freezer, mock_lookups):
+    freezer.move_to("2026-11-25 18:00:00+00:00")
+    entry = make_entry("tuesday", collection_days=["tuesday", "thursday"])
+    await setup_entry(hass, entry)
+    state = hass.states.get(NEXT)
+    assert state.state == "2026-11-27"
+    assert state.attributes["collection_days"] == ["Tuesday", "Thursday"]
+    assert state.attributes["collection_day"] == "Tuesday, Thursday"
+    assert state.attributes["delay_reason"] == "Thanksgiving"
+    assert hass.states.get(TOMORROW).state == "off"

@@ -3,6 +3,7 @@
 DOMAIN = "idaho_falls_garbage"
 
 CONF_COLLECTION_DAY = "collection_day"
+CONF_COLLECTION_DAYS = "collection_days"
 CONF_AUTO_DETECT = "auto_detect"
 CONF_CUTOFF_HOUR = "cutoff_hour"
 CONF_NO_DELAY_HOLIDAYS = "no_delay_holidays"
