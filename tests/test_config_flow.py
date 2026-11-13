@@ -26,6 +26,7 @@ async def test_auto_detect(hass):
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["collection_day"] == "thursday"
     assert result["options"]["auto_detect"] is True
+    assert result["options"]["collection_days"] == ["thursday"]
 
 
 async def test_outside_area_falls_back_to_manual(hass):
@@ -37,11 +38,12 @@ async def test_outside_area_falls_back_to_manual(hass):
     assert result["errors"] == {"base": "outside_service_area"}
     with patch("custom_components.idaho_falls_garbage.async_setup_entry", return_value=True):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {"collection_day": "friday"}
+            result["flow_id"], {"collection_days": ["monday", "thursday"]}
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["data"]["collection_day"] == "friday"
+    assert result["data"]["collection_day"] == "monday"
     assert result["options"]["auto_detect"] is False
+    assert result["options"]["collection_days"] == ["monday", "thursday"]
 
 
 async def test_cannot_connect_falls_back_to_manual(hass):
