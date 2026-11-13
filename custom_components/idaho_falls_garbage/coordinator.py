@@ -19,6 +19,7 @@ from .const import (
     CITY_SANITATION_URL,
     CONF_AUTO_DETECT,
     CONF_COLLECTION_DAY,
+    CONF_COLLECTION_DAYS,
     CONF_CUTOFF_HOUR,
     CONF_EXTRA_DELAY_DATES,
     CONF_NO_DELAY_HOLIDAYS,
@@ -49,6 +50,7 @@ class PickupInfo:
     upcoming: list[date]
     days_until: int
     collection_day: str
+    collection_days: list[str]
     today_pickup: bool
     tomorrow_pickup: bool
 
@@ -74,11 +76,26 @@ class GarbageCoordinator(DataUpdateCoordinator[LeafInfo | None]):
 
     # ----- configuration helpers -----
     @property
-    def collection_day(self) -> str:
+    def collection_days(self) -> list[str]:
+        """Return all configured pickup weekdays in calendar order."""
         entry = self.config_entry
         if entry.options.get(CONF_AUTO_DETECT, True):
-            return entry.data[CONF_COLLECTION_DAY]
-        return entry.options.get(CONF_COLLECTION_DAY, entry.data[CONF_COLLECTION_DAY])
+            return [entry.data[CONF_COLLECTION_DAY]]
+        configured = entry.options.get(
+            CONF_COLLECTION_DAYS,
+            [entry.options.get(CONF_COLLECTION_DAY, entry.data[CONF_COLLECTION_DAY])],
+        )
+        if isinstance(configured, str):
+            configured = [configured]
+        from .schedule import WEEKDAYS
+
+        days = {str(day).strip().lower() for day in configured}
+        return [day for day in WEEKDAYS if day in days] or [entry.data[CONF_COLLECTION_DAY]]
+
+    @property
+    def collection_day(self) -> str:
+        """Return a display-friendly collection day string."""
+        return ", ".join(day.title() for day in self.collection_days)
 
     @property
     def cutoff_hour(self) -> int:
@@ -108,7 +125,7 @@ class GarbageCoordinator(DataUpdateCoordinator[LeafInfo | None]):
         past_cutoff = now.hour >= self.cutoff_hour
         end = today + timedelta(weeks=8)
         pickups = pickups_in_range(
-            today, end, self.collection_day, self.delay_map(today, end)
+            today, end, self.collection_days, self.delay_map(today, end)
         )
         effective = today + timedelta(days=1) if past_cutoff else today
         upcoming = [p for p in pickups if p[0] >= effective]
@@ -121,7 +138,8 @@ class GarbageCoordinator(DataUpdateCoordinator[LeafInfo | None]):
             upcoming=[p[0] for p in upcoming[:4]],
             days_until=(actual - today).days,
             collection_day=self.collection_day,
-            today_pickup=pickups[0][0] == today and not past_cutoff,
+            collection_days=self.collection_days,
+            today_pickup=any(p[0] == today for p in pickups) and not past_cutoff,
             tomorrow_pickup=any(p[0] == tomorrow for p in pickups),
         )
 
@@ -129,7 +147,7 @@ class GarbageCoordinator(DataUpdateCoordinator[LeafInfo | None]):
         self, start: date, end: date
     ) -> list[tuple[date, date, list[str]]]:
         return pickups_in_range(
-            start, end, self.collection_day, self.delay_map(start, end)
+            start, end, self.collection_days, self.delay_map(start, end)
         )
 
     # ----- polling -----
@@ -178,7 +196,9 @@ class GarbageCoordinator(DataUpdateCoordinator[LeafInfo | None]):
             notification_id=f"{DOMAIN}_day_changed",
         )
         self.hass.config_entries.async_update_entry(
-            entry, data={**entry.data, CONF_COLLECTION_DAY: day}
+            entry,
+            data={**entry.data, CONF_COLLECTION_DAY: day},
+            options={**entry.options, CONF_COLLECTION_DAYS: [day]},
         )
         return True
 
