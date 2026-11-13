@@ -54,20 +54,11 @@ class ScheduleTests(unittest.TestCase):
         )
 
     def test_weekend_independence_day_and_observed_friday_do_not_shift(self):
-        # In 2026 Independence Day is Saturday and the city ran Friday,
-        # July 3 on its normal schedule.
-        self.assertEqual(
-            s.actual_pickup(date(2026, 7, 3), DM)[0], date(2026, 7, 3)
-        )
-
-    def test_weekend_holiday_no_effect(self):
         self.assertEqual(
             s.actual_pickup(date(2026, 7, 3), DM)[0], date(2026, 7, 3)
         )
 
     def test_non_delay_holiday(self):
-        # The city lists MLK Day, Presidents Day, Juneteenth,
-        # Columbus Day, and Veterans Day as on-schedule in 2026.
         for pickup in (
             date(2026, 1, 19),
             date(2026, 2, 16),
@@ -112,6 +103,36 @@ class ScheduleTests(unittest.TestCase):
             date(2026, 10, 27), date(2026, 10, 27), "tuesday", DM
         )
         self.assertEqual([o[0] for o in out], [date(2026, 10, 27)])
+
+    def test_multiple_weekdays(self):
+        out = s.pickups_in_range(
+            date(2026, 11, 24),
+            date(2026, 11, 30),
+            ["tuesday", "thursday"],
+            DM,
+        )
+        self.assertEqual(
+            [item[0] for item in out],
+            [date(2026, 11, 24), date(2026, 11, 27)],
+        )
+        self.assertEqual(out[1][1], date(2026, 11, 26))
+        self.assertEqual(out[1][2], ["Thanksgiving"])
+
+    def test_multiple_weekdays_are_normalized_and_deduplicated(self):
+        out = s.pickups_in_range(
+            date(2026, 11, 23),
+            date(2026, 11, 29),
+            ["thursday", "monday", "THURSDAY"],
+            DM,
+        )
+        self.assertEqual(
+            [item[0] for item in out],
+            [date(2026, 11, 23), date(2026, 11, 27)],
+        )
+
+    def test_multiple_weekdays_reject_empty_selection(self):
+        with self.assertRaises(ValueError):
+            s.pickups_in_range(date(2026, 11, 23), date(2026, 11, 29), [], DM)
 
 
 if __name__ == "__main__":
