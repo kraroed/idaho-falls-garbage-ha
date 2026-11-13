@@ -5,9 +5,10 @@ Tells you your next garbage pickup in Idaho Falls, ID, and shifts the date autom
 ## Features
 
 - **Uses your Home Assistant home location** to look up your collection day from the City of Idaho Falls GIS "Garbage Collection Area" layer (manual weekday fallback if the lookup fails).
-- **Holiday-aware.** Per the city's policy, there is no collection on these weekday holidays and pickups for the rest of that week run one day late: New Year's Day, Memorial Day, Independence Day, Labor Day, Thanksgiving, Christmas Day. Holidays on a weekend change nothing.
+- **Holiday-aware.** Per the city's published policy, there is no collection on specified holidays and pickups for the rest of that week run one day late. The city publishes a year-specific schedule; the integration's configurable holiday exceptions let you adapt when its policy changes.
 - **Leaf collection** (seasonal) for your leaf zone, from the city's Leaf Collection GIS layer.
 - **Self-correcting:** re-checks the city's map daily and updates your day (with a notification) if the city changes it.
+- **Resilient GIS handling:** malformed service responses, invalid features, and unusable date values are handled without crashing entity updates.
 
 ## Entities
 
@@ -28,6 +29,10 @@ Tells you your next garbage pickup in Idaho Falls, ID, and shifts the date autom
 - **Extra delay dates**: one-off city-announced delays (weather, etc.), `YYYY-MM-DD`.
 
 Each January and February a Repairs notice reminds you to check the city's holiday schedule; dismiss it once you have.
+
+## Important coverage note
+
+The city sanitation map also identifies containerized alley areas with special collection schedules (some locations have two collection days per week). The current integration models one weekday per location and does not automatically identify those special alley schedules. If your property is served by a containerized alley, verify its schedule with the city before relying on this integration. Support for multiple weekly pickup days requires a separate schedule model.
 
 ## Install
 
@@ -62,7 +67,7 @@ automation:
 ## Notes and caveats
 
 - Home Assistant stores your home as coordinates, not a street address, so that is what is sent to the city's GIS service.
-- Holiday rules come from the city's published policy and can change year to year (the city's 2023 and 2026 Labor Day notices differed). See the [city Sanitation page](https://idahofallsidaho.gov/365/Sanitation).
+- Holiday rules come from the city's published year-specific schedule and can change. Review the [city Sanitation page](https://idahofallsidaho.gov/365/Sanitation) each year.
 - Garbage and leaf collection only. Unofficial; not affiliated with the City of Idaho Falls.
 
 ## Development
