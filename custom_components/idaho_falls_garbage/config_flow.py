@@ -24,6 +24,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_AUTO_DETECT,
     CONF_COLLECTION_DAY,
+    CONF_COLLECTION_DAYS,
     CONF_CUTOFF_HOUR,
     CONF_EXTRA_DELAY_DATES,
     CONF_NO_DELAY_HOLIDAYS,
@@ -34,10 +35,12 @@ from .lookup import CannotConnect, async_lookup_collection_day
 from .schedule import DELAY_HOLIDAYS, WEEKDAYS
 
 
-def _day_selector() -> SelectSelector:
+def _days_selector() -> SelectSelector:
+    """Selector for one or more weekly collection days."""
     return SelectSelector(
         SelectSelectorConfig(
             options=[{"value": d, "label": d.title()} for d in WEEKDAYS],
+            multiple=True,
             mode=SelectSelectorMode.DROPDOWN,
         )
     )
@@ -85,7 +88,7 @@ class IdahoFallsGarbageConfigFlow(ConfigFlow, domain=DOMAIN):
             if day is None:
                 self._error = "outside_service_area"
                 return await self.async_step_manual()
-            return self._create(day, manual=False)
+            return self._create([day], manual=False)
 
         return self.async_show_form(
             step_id="user",
@@ -105,25 +108,36 @@ class IdahoFallsGarbageConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         if user_input is not None:
-            return self._create(user_input[CONF_COLLECTION_DAY], manual=True)
+            days = user_input[CONF_COLLECTION_DAYS]
+            if not days:
+                return self.async_show_form(
+                    step_id="manual",
+                    data_schema=vol.Schema(
+                        {vol.Required(CONF_COLLECTION_DAYS, default=[]): _days_selector()}
+                    ),
+                    errors={"base": "invalid_collection_days"},
+                )
+            return self._create(days, manual=True)
         return self.async_show_form(
             step_id="manual",
             data_schema=vol.Schema(
-                {vol.Required(CONF_COLLECTION_DAY, default="monday"): _day_selector()}
+                {vol.Required(CONF_COLLECTION_DAYS, default=["monday"]): _days_selector()}
             ),
             errors={"base": self._error} if self._error else {},
         )
 
-    def _create(self, day: str, manual: bool) -> ConfigFlowResult:
+    def _create(self, days: list[str], manual: bool) -> ConfigFlowResult:
+        normalized = [day for day in WEEKDAYS if day in {d.lower() for d in days}]
         return self.async_create_entry(
             title="Idaho Falls Garbage",
             data={
                 CONF_LATITUDE: self._lat,
                 CONF_LONGITUDE: self._lon,
-                CONF_COLLECTION_DAY: day,
+                CONF_COLLECTION_DAY: normalized[0],
             },
             options={
                 CONF_AUTO_DETECT: not manual,
+                CONF_COLLECTION_DAYS: normalized,
                 CONF_CUTOFF_HOUR: DEFAULT_CUTOFF_HOUR,
             },
         )
@@ -135,7 +149,7 @@ class IdahoFallsGarbageConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class IdahoFallsGarbageOptionsFlow(OptionsFlow):
-    """Adjust detection, cutoff, and holiday behavior."""
+    """Adjust detection, collection days, cutoff, and holiday behavior."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -143,7 +157,9 @@ class IdahoFallsGarbageOptionsFlow(OptionsFlow):
         errors: dict[str, str] = {}
         entry = self.config_entry
         if user_input is not None:
-            if _parse_dates(user_input.get(CONF_EXTRA_DELAY_DATES, "")) is None:
+            if not user_input.get(CONF_COLLECTION_DAYS):
+                errors["base"] = "invalid_collection_days"
+            elif _parse_dates(user_input.get(CONF_EXTRA_DELAY_DATES, "")) is None:
                 errors[CONF_EXTRA_DELAY_DATES] = "invalid_date"
             else:
                 user_input[CONF_CUTOFF_HOUR] = int(
@@ -152,15 +168,20 @@ class IdahoFallsGarbageOptionsFlow(OptionsFlow):
                 return self.async_create_entry(data=user_input)
 
         opts = entry.options
+        default_days = opts.get(
+            CONF_COLLECTION_DAYS,
+            [opts.get(CONF_COLLECTION_DAY, entry.data[CONF_COLLECTION_DAY])],
+        )
+        if isinstance(default_days, str):
+            default_days = [default_days]
         schema = vol.Schema(
             {
                 vol.Required(
                     CONF_AUTO_DETECT, default=opts.get(CONF_AUTO_DETECT, True)
                 ): BooleanSelector(),
                 vol.Required(
-                    CONF_COLLECTION_DAY,
-                    default=opts.get(CONF_COLLECTION_DAY, entry.data[CONF_COLLECTION_DAY]),
-                ): _day_selector(),
+                    CONF_COLLECTION_DAYS, default=default_days
+                ): _days_selector(),
                 vol.Required(
                     CONF_CUTOFF_HOUR,
                     default=int(opts.get(CONF_CUTOFF_HOUR, DEFAULT_CUTOFF_HOUR)),
